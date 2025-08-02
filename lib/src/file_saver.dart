@@ -240,24 +240,26 @@ class FileSaveDirectory {
 
   Future<FileSaveResult> _saveToIOSDocuments(
       String fileName, List<int> fileBytes) async {
-    try {
-      Directory dir = await getApplicationDocumentsDirectory();
-      final file = await _getUniqueFile(dir.path, fileName);
-      await file.writeAsBytes(fileBytes);
+  try {
+    final bool result = await FileSaveDirectory._channel.invokeMethod(
+      'saveFileWithPicker',
+      {
+        'fileName': fileName,
+        'fileBytes': fileBytes,
+      },
+    );
 
-      return FileSaveResult(
-        success: true,
-        path: file.path,
-        message: 'File saved successfully',
-      );
-    } catch (e) {
-      return FileSaveResult(
-        success: false,
-        error: 'Failed to save file: $e',
-        path: null,
-      );
-    }
+    return FileSaveResult(
+      success: result,
+      message: result ? 'File saved via document picker' : 'Failed to save',
+    );
+  } catch (e) {
+    return FileSaveResult(
+      success: false,
+      error: 'iOS Save Picker Error: $e',
+    );
   }
+}
 
   Future<File> _getUniqueFile(String dirPath, String fileName) async {
     String filePath = path.join(dirPath, fileName);
