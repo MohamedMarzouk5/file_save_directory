@@ -53,7 +53,16 @@ android:requestLegacyExternalStorage="true"
 
 #### 🍎 iOS Setup
 
-No setup needed. iOS saves to the app's private Documents directory. No permissions required.
+Add the following keys to your `ios/Runner/Info.plist` file:
+
+```xml
+<key>UIFileSharingEnabled</key>
+<true/>
+<key>LSSupportsOpeningDocumentsInPlace</key>
+<true/>
+```
+
+These keys enable file sharing and document interaction for your iOS app.
 
 ## 💡 Usage
 
