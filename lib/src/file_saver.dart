@@ -31,6 +31,12 @@ class FileSaveDirectory {
         case SaveLocation.documents:
           result = await _saveToDocuments(fileName, fileBytes);
           break;
+        case SaveLocation.music:
+          result = await _saveToMusic(fileName, fileBytes);
+          break;
+        case SaveLocation.videos:
+          result = await _saveToVideos(fileName, fileBytes);
+          break;
         case SaveLocation.appDocuments:
           result = await _saveToAppDocuments(fileName, fileBytes);
           break;
@@ -85,6 +91,38 @@ class FileSaveDirectory {
       return await _saveToAndroidFolder(fileName, fileBytes, 'Documents');
     } else if (Platform.isIOS) {
       return await _saveToIOSDocuments(fileName, fileBytes);
+    }
+    return FileSaveResult(
+      success: false,
+      error: 'Platform not supported',
+      path: null,
+    );
+  }
+
+  Future<FileSaveResult> _saveToMusic(
+      String fileName, List<int> fileBytes) async {
+    if (Platform.isAndroid) {
+      return await _saveToAndroidFolder(fileName, fileBytes, 'Music');
+    } else if (Platform.isIOS) {
+      // iOS doesn't have a public Music folder accessible to apps
+      // Save to app's Music directory or use document picker
+      return await _saveToIOSMusic(fileName, fileBytes);
+    }
+    return FileSaveResult(
+      success: false,
+      error: 'Platform not supported',
+      path: null,
+    );
+  }
+
+  Future<FileSaveResult> _saveToVideos(
+      String fileName, List<int> fileBytes) async {
+    if (Platform.isAndroid) {
+      return await _saveToAndroidFolder(fileName, fileBytes, 'Videos');
+    } else if (Platform.isIOS) {
+      // iOS doesn't have a public Videos folder accessible to apps
+      // Save to app's Videos directory or use document picker
+      return await _saveToIOSVideos(fileName, fileBytes);
     }
     return FileSaveResult(
       success: false,
@@ -171,9 +209,21 @@ class FileSaveDirectory {
   Future<FileSaveResult> _saveDirectly(
       String fileName, List<int> fileBytes, String folder) async {
     try {
-      String folderPath = folder == 'Documents'
-          ? '/storage/emulated/0/Documents'
-          : '/storage/emulated/0/Download';
+      String folderPath;
+      switch (folder) {
+        case 'Documents':
+          folderPath = '/storage/emulated/0/Documents';
+          break;
+        case 'Music':
+          folderPath = '/storage/emulated/0/Music';
+          break;
+        case 'Videos':
+          folderPath =
+              '/storage/emulated/0/Movies'; // Android uses Movies folder
+          break;
+        default:
+          folderPath = '/storage/emulated/0/Download';
+      }
 
       Directory targetDir = Directory(folderPath);
 
@@ -240,26 +290,108 @@ class FileSaveDirectory {
 
   Future<FileSaveResult> _saveToIOSDocuments(
       String fileName, List<int> fileBytes) async {
-  try {
-    final bool result = await FileSaveDirectory._channel.invokeMethod(
-      'saveFileWithPicker',
-      {
-        'fileName': fileName,
-        'fileBytes': fileBytes,
-      },
-    );
+    try {
+      final bool result = await _channel.invokeMethod(
+        'saveFileWithPicker',
+        {
+          'fileName': fileName,
+          'fileBytes': fileBytes,
+        },
+      );
 
-    return FileSaveResult(
-      success: result,
-      message: result ? 'File saved via document picker' : 'Failed to save',
-    );
-  } catch (e) {
-    return FileSaveResult(
-      success: false,
-      error: 'iOS Save Picker Error: $e',
-    );
+      return FileSaveResult(
+        success: result,
+        message: result ? 'File saved via document picker' : 'Failed to save',
+        path: null,
+      );
+    } catch (e) {
+      return FileSaveResult(
+        success: false,
+        error: 'iOS Save Picker Error: $e',
+        path: null,
+      );
+    }
   }
-}
+
+  Future<FileSaveResult> _saveToIOSMusic(
+      String fileName, List<int> fileBytes) async {
+    try {
+      // iOS doesn't allow direct access to the Music library for third-party apps
+      // We have two options:
+      // 1. Save to app's private music directory
+      // 2. Use document picker (same as documents)
+
+      // Option 1: Save to app's music directory
+      Directory appDir = await getApplicationDocumentsDirectory();
+      String musicDirPath = '${appDir.path}/Music';
+      Directory musicDir = Directory(musicDirPath);
+
+      if (!musicDir.existsSync()) {
+        musicDir.createSync(recursive: true);
+      }
+
+      final file = await _getUniqueFile(musicDir.path, fileName);
+      await file.writeAsBytes(fileBytes);
+
+      log('File saved in app music directory: ${file.path}');
+
+      return FileSaveResult(
+        success: true,
+        path: file.path,
+        message:
+            'File saved in app\'s Music folder. Note: iOS apps cannot directly save to the system Music library.',
+      );
+
+      // Option 2: Use document picker (uncomment if preferred)
+      // return await _saveToIOSDocuments(fileName, fileBytes);
+    } catch (e) {
+      return FileSaveResult(
+        success: false,
+        error: 'Failed to save to Music folder: $e',
+        path: null,
+      );
+    }
+  }
+
+  Future<FileSaveResult> _saveToIOSVideos(
+      String fileName, List<int> fileBytes) async {
+    try {
+      // iOS doesn't allow direct access to the Videos library for third-party apps
+      // We have two options:
+      // 1. Save to app's private videos directory
+      // 2. Use document picker (same as documents)
+
+      // Option 1: Save to app's videos directory
+      Directory appDir = await getApplicationDocumentsDirectory();
+      String videosDirPath = '${appDir.path}/Videos';
+      Directory videosDir = Directory(videosDirPath);
+
+      if (!videosDir.existsSync()) {
+        videosDir.createSync(recursive: true);
+      }
+
+      final file = await _getUniqueFile(videosDir.path, fileName);
+      await file.writeAsBytes(fileBytes);
+
+      log('File saved in app videos directory: ${file.path}');
+
+      return FileSaveResult(
+        success: true,
+        path: file.path,
+        message:
+            'File saved in app\'s Videos folder. Note: iOS apps cannot directly save to the system Videos library.',
+      );
+
+      // Option 2: Use document picker (uncomment if preferred)
+      // return await _saveToIOSDocuments(fileName, fileBytes);
+    } catch (e) {
+      return FileSaveResult(
+        success: false,
+        error: 'Failed to save to Videos folder: $e',
+        path: null,
+      );
+    }
+  }
 
   Future<File> _getUniqueFile(String dirPath, String fileName) async {
     String filePath = path.join(dirPath, fileName);
@@ -281,6 +413,40 @@ class FileSaveDirectory {
   /// Open app settings for permission management
   Future<void> openAppSettings() async {
     await openAppSettings();
+  }
+
+  /// Check if the file is an audio file based on its extension
+  bool isAudioFile(String fileName) {
+    final extension = path.extension(fileName).toLowerCase();
+    const audioExtensions = [
+      '.mp3',
+      '.wav',
+      '.m4a',
+      '.flac',
+      '.ogg',
+      '.aac',
+      '.wma',
+      '.opus'
+    ];
+    return audioExtensions.contains(extension);
+  }
+
+  /// Check if the file is a video file based on its extension
+  bool isVideoFile(String fileName) {
+    final extension = path.extension(fileName).toLowerCase();
+    const videoExtensions = [
+      '.mp4',
+      '.avi',
+      '.mkv',
+      '.mov',
+      '.wmv',
+      '.flv',
+      '.webm',
+      '.m4v',
+      '.3gp',
+      '.mpeg'
+    ];
+    return videoExtensions.contains(extension);
   }
 }
 

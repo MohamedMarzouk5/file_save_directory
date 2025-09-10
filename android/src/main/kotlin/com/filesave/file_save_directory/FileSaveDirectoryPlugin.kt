@@ -51,19 +51,68 @@ class FileSaveDirectoryPlugin: FlutterPlugin, MethodCallHandler {
       var fileNumber = 1
 
       val resolver = flutterPluginBinding.applicationContext.contentResolver
-      val contentUri = when (folder) {
+      
+      // Determine the appropriate content URI and relative path based on the folder
+      val (contentUri, relativePath) = when (folder) {
         "Documents" -> {
-          // For Documents, we need to use Files URI and specify the Documents directory
-          MediaStore.Files.getContentUri("external")
+          Pair(
+            MediaStore.Files.getContentUri("external"),
+            Environment.DIRECTORY_DOCUMENTS
+          )
         }
-        else -> MediaStore.Downloads.EXTERNAL_CONTENT_URI
+        "Music" -> {
+          // Use Audio content URI for music files
+          val extension = fileExtension(fileName).lowercase()
+          if (extension in listOf("mp3", "wav", "m4a", "flac", "ogg", "aac")) {
+            Pair(
+              MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+              Environment.DIRECTORY_MUSIC
+            )
+          } else {
+            // For non-audio files in Music folder, use Files URI
+            Pair(
+              MediaStore.Files.getContentUri("external"),
+              Environment.DIRECTORY_MUSIC
+            )
+          }
+        }
+        "Videos" -> {
+          // Use Video content URI for video files
+          val extension = fileExtension(fileName).lowercase()
+          if (extension in listOf("mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "m4v", "3gp")) {
+            Pair(
+              MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+              Environment.DIRECTORY_MOVIES
+            )
+          } else {
+            // For non-video files in Videos folder, use Files URI
+            Pair(
+              MediaStore.Files.getContentUri("external"),
+              Environment.DIRECTORY_MOVIES
+            )
+          }
+        }
+        else -> {
+          Pair(
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            Environment.DIRECTORY_DOWNLOADS
+          )
+        }
+      }
+
+      // Determine the correct column name based on content URI
+      val displayNameColumn = when {
+        contentUri == MediaStore.Audio.Media.EXTERNAL_CONTENT_URI -> MediaStore.Audio.Media.DISPLAY_NAME
+        contentUri == MediaStore.Video.Media.EXTERNAL_CONTENT_URI -> MediaStore.Video.Media.DISPLAY_NAME
+        contentUri == MediaStore.Downloads.EXTERNAL_CONTENT_URI -> MediaStore.Downloads.DISPLAY_NAME
+        else -> MediaStore.Files.FileColumns.DISPLAY_NAME
       }
 
       // Check if a file with the same name exists
       var cursor: Cursor? = resolver.query(
         contentUri,
         null,
-        "${MediaStore.Downloads.DISPLAY_NAME} = ?",
+        "$displayNameColumn = ?",
         arrayOf(adjustedFileName),
         null
       )
@@ -75,7 +124,7 @@ class FileSaveDirectoryPlugin: FlutterPlugin, MethodCallHandler {
         cursor = resolver.query(
           contentUri,
           null,
-          "${MediaStore.Downloads.DISPLAY_NAME} = ?",
+          "$displayNameColumn = ?",
           arrayOf(adjustedFileName),
           null
         )
@@ -84,12 +133,32 @@ class FileSaveDirectoryPlugin: FlutterPlugin, MethodCallHandler {
 
       // Create content values with the adjusted file name
       val contentValues = ContentValues().apply {
-        put(MediaStore.Downloads.DISPLAY_NAME, adjustedFileName)
-        put(MediaStore.Downloads.MIME_TYPE, getMimeType(adjustedFileName))
-        put(MediaStore.Downloads.RELATIVE_PATH, 
-          if (folder == "Documents") Environment.DIRECTORY_DOCUMENTS 
-          else Environment.DIRECTORY_DOWNLOADS
-        )
+        when {
+          contentUri == MediaStore.Audio.Media.EXTERNAL_CONTENT_URI -> {
+            put(MediaStore.Audio.Media.DISPLAY_NAME, adjustedFileName)
+            put(MediaStore.Audio.Media.MIME_TYPE, getMimeType(adjustedFileName))
+            put(MediaStore.Audio.Media.RELATIVE_PATH, relativePath)
+            // Add audio-specific metadata if needed
+            put(MediaStore.Audio.Media.IS_MUSIC, 1)
+          }
+          contentUri == MediaStore.Video.Media.EXTERNAL_CONTENT_URI -> {
+            put(MediaStore.Video.Media.DISPLAY_NAME, adjustedFileName)
+            put(MediaStore.Video.Media.MIME_TYPE, getMimeType(adjustedFileName))
+            put(MediaStore.Video.Media.RELATIVE_PATH, relativePath)
+            // Add video-specific metadata if needed
+            put(MediaStore.Video.Media.IS_PENDING, 0)
+          }
+          contentUri == MediaStore.Downloads.EXTERNAL_CONTENT_URI -> {
+            put(MediaStore.Downloads.DISPLAY_NAME, adjustedFileName)
+            put(MediaStore.Downloads.MIME_TYPE, getMimeType(adjustedFileName))
+            put(MediaStore.Downloads.RELATIVE_PATH, relativePath)
+          }
+          else -> {
+            put(MediaStore.Files.FileColumns.DISPLAY_NAME, adjustedFileName)
+            put(MediaStore.Files.FileColumns.MIME_TYPE, getMimeType(adjustedFileName))
+            put(MediaStore.Files.FileColumns.RELATIVE_PATH, relativePath)
+          }
+        }
       }
 
       // Save the file
@@ -119,12 +188,43 @@ class FileSaveDirectoryPlugin: FlutterPlugin, MethodCallHandler {
   private fun getMimeType(fileName: String): String {
     val extension = fileName.substringAfterLast(".").lowercase()
     return when (extension) {
-      "jpg", "jpeg", "png" -> "image/jpeg"
+      // Image types
+      "jpg", "jpeg" -> "image/jpeg"
+      "png" -> "image/png"
+      "gif" -> "image/gif"
+      "bmp" -> "image/bmp"
+      "webp" -> "image/webp"
+      
+      // Video types
+      "mp4" -> "video/mp4"
+      "avi" -> "video/x-msvideo"
+      "mkv" -> "video/x-matroska"
+      "mov" -> "video/quicktime"
+      "wmv" -> "video/x-ms-wmv"
+      "flv" -> "video/x-flv"
+      "webm" -> "video/webm"
+      "m4v" -> "video/mp4"
+      "3gp" -> "video/3gpp"
+      "mpeg" -> "video/mpeg"
+      
+      // Audio types
+      "mp3" -> "audio/mpeg"
+      "wav" -> "audio/wav"
+      "m4a" -> "audio/mp4"
+      "flac" -> "audio/flac"
+      "ogg" -> "audio/ogg"
+      "aac" -> "audio/aac"
+      "wma" -> "audio/x-ms-wma"
+      "opus" -> "audio/opus"
+      
+      // Document types
       "pdf" -> "application/pdf"
       "txt" -> "text/plain"
       "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
       "zip" -> "application/zip"
+      
+      // Default
       else -> "application/octet-stream"
     }
   }

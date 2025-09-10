@@ -1,7 +1,6 @@
 name: file_save_directory
-description: A Flutter plugin for saving files to Downloads, Documents, or App
-  Documents folders on Android and iOS with enum-based location selection
-version: 1.0.1 # or appropriate version
+description: A Flutter plugin for saving files to Downloads, Documents, Music, Videos, or App Documents folders on Android and iOS with enum-based location selection and smart file type detection
+version: 1.0.2
 homepage: https://github.com/yourusername/file_save_directory
 
 environment:

@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:file_save_directory/file_save_directory.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:path_provider/path_provider.dart'; // For appDocuments testing
 import 'package:permission_handler/permission_handler.dart'; // For permission testing
 
 void main() {
@@ -60,7 +59,7 @@ void main() {
         reason: 'File should be saved successfully to downloads',
       );
       expect(result.path, isNotNull, reason: 'Path should not be null');
-      print('Saved to Downloads/Documents: ${result.path}');
+      // print('Saved to Downloads/Documents: ${result.path}');
 
       // Optional: Verify file existence (challenging for public dirs due to scoped storage)
       // For public directories, verifying existence is harder.
@@ -99,7 +98,7 @@ void main() {
         reason: 'File should be saved successfully to documents',
       );
       expect(result.path, isNotNull, reason: 'Path should not be null');
-      print('Saved to Documents: ${result.path}');
+      // print('Saved to Documents: ${result.path}');
     });
 
     // --- Tests for SaveLocation.appDocuments ---
@@ -123,10 +122,10 @@ void main() {
         reason: 'File should be saved successfully to app documents',
       );
       expect(result.path, isNotNull, reason: 'Path should not be null');
-      print('Saved to App Documents: ${result.path}');
+      // print('Saved to App Documents: ${result.path}');
 
       // Verify file existence in app documents (easier to verify)
-      final appDocDir = await getApplicationDocumentsDirectory();
+      // final appDocDir = await getApplicationDocumentsDirectory();
       final savedFile = File(result.path!);
       expect(
         await savedFile.exists(),
@@ -163,7 +162,7 @@ void main() {
         location: SaveLocation.appDocuments,
       );
       expect(result1.success, true);
-      print('Saved first duplicate: ${result1.path}');
+      // print('Saved first duplicate: ${result1.path}');
 
       // Save second file with same name
       final result2 = await fileStore.saveFile(
@@ -172,7 +171,7 @@ void main() {
         location: SaveLocation.appDocuments,
       );
       expect(result2.success, true);
-      print('Saved second duplicate: ${result2.path}');
+      // print('Saved second duplicate: ${result2.path}');
 
       // Verify the second file has a modified name (e.g., duplicate_test(1).txt)
       expect(result2.path, isNot(equals(result1.path)));
@@ -194,10 +193,9 @@ void main() {
         () async {
           // Attempting to pass null to a non-nullable required String will throw a TypeError
           await fileStore.saveFile(
-            fileName:
-                null as String, // This is the line that causes the TypeError.
+            fileName: '',
             // It's a way to explicitly trigger and test that TypeError.
-            fileBytes: createDummyFileBytes(''),
+            fileBytes: createDummyFileBytes(''), // empty string
             location: SaveLocation.downloads,
           );
         },
