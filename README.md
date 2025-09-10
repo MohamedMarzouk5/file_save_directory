@@ -33,7 +33,16 @@ A Flutter plugin that allows you to **save files** to the **Downloads**, **Docum
 
 #### ✅ Android Setup
 
-1. **Add permissions** in `android/app/src/main/AndroidManifest.xml` (inside `<manifest>`, but outside `<application>`):
+1. **Update AndroidManifest.xml** in `android/app/src/main/AndroidManifest.xml`:
+
+   First, ensure your manifest declaration includes the required namespaces:
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+```
+
+2. **Add permissions** (inside `<manifest>`, but outside `<application>`):
 
 ```xml
 <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
@@ -41,7 +50,7 @@ A Flutter plugin that allows you to **save files** to the **Downloads**, **Docum
 <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
 ```
 
-2. **Enable Legacy Storage** (For Android 10)
+3. **Enable Legacy Storage** (For Android 10)
 
    Inside the `<application>` tag in `AndroidManifest.xml`, add:
 

@@ -1,3 +1,8 @@
+## 1.0.3
+
+- [Documentation] Updated README.md to include proper Android manifest namespace declaration
+- [Documentation] Enhanced Android setup instructions with required xmlns:tools namespace
+
 ## 1.0.2
 
 - [Android/iOS] Added support for saving files to Videos directory
